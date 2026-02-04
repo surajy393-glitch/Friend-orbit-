@@ -143,6 +143,16 @@ async def init_db():
                 expires_at TIMESTAMPTZ
             )
         ''')
+        
+        await conn.execute('''
+            CREATE TABLE IF NOT EXISTS interaction_logs (
+                id TEXT PRIMARY KEY,
+                person_id TEXT NOT NULL REFERENCES people(id),
+                user_id TEXT NOT NULL REFERENCES users(id),
+                note TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        ''')
     
     logger.info("Database initialized successfully")
 
@@ -508,6 +518,8 @@ async def get_person(person_id: str, user_id: Optional[str] = None):
         if not row:
             raise HTTPException(status_code=404, detail="Person not found")
         person = dict(row)
+        if user_id and person.get('user_id') != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
         person['orbit_zone'] = get_orbit_zone(person.get('gravity_score', 0))
         if person.get('tags') is None:
             person['tags'] = []
@@ -523,6 +535,8 @@ async def update_person(person_id: str, update_data: PersonUpdate, user_id: Opti
         existing = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Person not found")
+        if user_id and existing['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
         
         set_clause = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(update_dict.keys())])
         values = [person_id] + list(update_dict.values())
@@ -534,12 +548,14 @@ async def update_person(person_id: str, update_data: PersonUpdate, user_id: Opti
         return person
 
 @api_router.post("/people/{person_id}/interaction", response_model=Dict)
-async def log_interaction(person_id: str, user_id: Optional[str] = None):
+async def log_interaction(person_id: str, user_id: Optional[str] = None, note: Optional[str] = None):
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
         if not row:
             raise HTTPException(status_code=404, detail="Person not found")
         person = dict(row)
+        if user_id and person.get('user_id') != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
     
     new_score = min(100, person.get('gravity_score', 50) + 20)
     now = datetime.now(timezone.utc)
@@ -548,6 +564,11 @@ async def log_interaction(person_id: str, user_id: Optional[str] = None):
         await conn.execute(
             "UPDATE people SET gravity_score = $1, last_interaction = $2 WHERE id = $3",
             new_score, now, person_id
+        )
+        interaction_id = str(uuid.uuid4())
+        await conn.execute(
+            "INSERT INTO interaction_logs (id, person_id, user_id, note, created_at) VALUES ($1, $2, $3, $4, $5)",
+            interaction_id, person_id, person['user_id'], note, now
         )
         row = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
         updated = dict(row)
@@ -560,8 +581,29 @@ async def archive_person(person_id: str, user_id: Optional[str] = None):
         existing = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Person not found")
+        if user_id and existing['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
         await conn.execute("UPDATE people SET archived = TRUE WHERE id = $1", person_id)
     return {"message": "Person archived", "id": person_id}
+
+@api_router.post("/people/{person_id}/restore")
+async def restore_person(person_id: str, user_id: Optional[str] = None):
+    async with db_pool.acquire() as conn:
+        existing = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Person not found")
+        if user_id and existing['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        await conn.execute("UPDATE people SET archived = FALSE WHERE id = $1", person_id)
+    return {"message": "Person restored", "id": person_id}
+
+@api_router.get("/people/archived", response_model=List[Dict])
+async def get_archived_people(current_user: Dict = Depends(get_current_user)):
+    """Get archived people - requires authentication"""
+    user_id = current_user['id']
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT * FROM people WHERE user_id = $1 AND archived = TRUE", user_id)
+        return [dict(row) for row in rows]
 
 @api_router.post("/meteors", response_model=Dict)
 async def create_meteor(meteor_data: MeteorCreate, user_id: Optional[str] = None):
@@ -610,6 +652,8 @@ async def update_meteor(meteor_id: str, update_data: MeteorUpdate, user_id: Opti
         existing = await conn.fetchrow("SELECT * FROM meteors WHERE id = $1", meteor_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Meteor not found")
+        if user_id and existing['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
         
         set_clause = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(update_dict.keys())])
         values = [meteor_id] + list(update_dict.values())
@@ -624,6 +668,8 @@ async def archive_meteor(meteor_id: str, user_id: Optional[str] = None):
         existing = await conn.fetchrow("SELECT * FROM meteors WHERE id = $1", meteor_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Meteor not found")
+        if user_id and existing['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
         await conn.execute("UPDATE meteors SET archived = TRUE WHERE id = $1", meteor_id)
     return {"message": "Meteor archived", "id": meteor_id}
 
@@ -1027,15 +1073,175 @@ async def get_user_stats(user_id: str):
     
     drifting = [p for p in people if p.get('gravity_score', 100) < 40]
     
+    by_archetype = {}
+    for p in people:
+        a = p.get('archetype', 'Anchor')
+        by_archetype[a] = by_archetype.get(a, 0) + 1
+    
+    avg_gravity = sum(p.get('gravity_score', 0) for p in people) / total if total > 0 else 0
+    
     return {
         "total_people": total,
         "inner_circle": inner,
         "goldilocks_zone": goldilocks,
         "outer_rim": outer,
         "by_type": by_type,
+        "by_archetype": by_archetype,
+        "average_gravity": round(avg_gravity, 1),
         "drifting_count": len(drifting),
         "drifting_names": [p['name'] for p in drifting[:5]]
     }
+
+@api_router.get("/export/{user_id}")
+async def export_user_data(user_id: str, current_user: Dict = Depends(get_current_user)):
+    """Export all user data as JSON - requires authentication"""
+    if current_user['id'] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    async with db_pool.acquire() as conn:
+        user = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        people = await conn.fetch("SELECT * FROM people WHERE user_id = $1", user_id)
+        meteors = await conn.fetch("SELECT * FROM meteors WHERE user_id = $1", user_id)
+        battery_logs = await conn.fetch("SELECT * FROM battery_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100", user_id)
+        interactions = await conn.fetch("SELECT * FROM interaction_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100", user_id)
+        
+        return {
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "user": serialize_row(user),
+            "people": [serialize_row(p) for p in people],
+            "meteors": [serialize_row(m) for m in meteors],
+            "battery_logs": [serialize_row(b) for b in battery_logs],
+            "interaction_logs": [serialize_row(i) for i in interactions]
+        }
+
+@api_router.get("/battery/history/{user_id}")
+async def get_battery_history(user_id: str, limit: int = 30, current_user: Dict = Depends(get_current_user)):
+    """Get battery score history for trends - requires authentication"""
+    if current_user['id'] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT score, created_at FROM battery_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2",
+            user_id, limit
+        )
+        
+        history = [{"score": r['score'], "date": r['created_at'].isoformat()} for r in rows]
+        
+        avg_score = sum(r['score'] for r in rows) / len(rows) if rows else 0
+        trend = "stable"
+        if len(rows) >= 7:
+            recent = sum(r['score'] for r in rows[:3]) / 3
+            older = sum(r['score'] for r in rows[4:7]) / 3
+            if recent > older + 10:
+                trend = "improving"
+            elif recent < older - 10:
+                trend = "declining"
+        
+        return {
+            "history": history,
+            "average": round(avg_score, 1),
+            "trend": trend,
+            "total_entries": len(rows)
+        }
+
+@api_router.get("/interactions/{user_id}")
+async def get_interaction_history(user_id: str, person_id: Optional[str] = None, limit: int = 50, current_user: Dict = Depends(get_current_user)):
+    """Get interaction history - requires authentication"""
+    if current_user['id'] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    async with db_pool.acquire() as conn:
+        if person_id:
+            rows = await conn.fetch(
+                """SELECT i.*, p.name as person_name FROM interaction_logs i
+                   JOIN people p ON i.person_id = p.id
+                   WHERE i.user_id = $1 AND i.person_id = $2 
+                   ORDER BY i.created_at DESC LIMIT $3""",
+                user_id, person_id, limit
+            )
+        else:
+            rows = await conn.fetch(
+                """SELECT i.*, p.name as person_name FROM interaction_logs i
+                   JOIN people p ON i.person_id = p.id
+                   WHERE i.user_id = $1 
+                   ORDER BY i.created_at DESC LIMIT $2""",
+                user_id, limit
+            )
+        return [serialize_row(r) for r in rows]
+
+@api_router.post("/nudge/{person_id}")
+async def send_nudge(person_id: str, current_user: Dict = Depends(get_current_user)):
+    """Send a nudge notification for a drifting person - requires authentication"""
+    user_id = current_user['id']
+    async with db_pool.acquire() as conn:
+        person = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
+        if not person:
+            raise HTTPException(status_code=404, detail="Person not found")
+        if person['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        user = await conn.fetchrow("SELECT telegram_id, display_name FROM users WHERE id = $1", user_id)
+        if not user or not user['telegram_id']:
+            raise HTTPException(status_code=400, detail="User has no Telegram ID")
+        
+        message = f"💫 <b>Nudge:</b> Time to reach out to <b>{person['name']}</b>!\n\nGravity: {person['gravity_score']:.0f}% - they're drifting away."
+        await send_telegram_message(user['telegram_id'], message, {
+            "inline_keyboard": [[{"text": "🪐 Open Friend Orbit", "web_app": {"url": WEBAPP_URL}}]]
+        })
+        
+        return {"message": "Nudge sent", "person": person['name']}
+
+@api_router.get("/people/filter")
+async def filter_people(tag: Optional[str] = None, archetype: Optional[str] = None, 
+                        relationship_type: Optional[str] = None, orbit_zone: Optional[str] = None,
+                        current_user: Dict = Depends(get_current_user)):
+    """Filter people by various criteria - requires authentication"""
+    user_id = current_user['id']
+    async with db_pool.acquire() as conn:
+        query = "SELECT * FROM people WHERE user_id = $1 AND archived = FALSE"
+        params = [user_id]
+        param_count = 1
+        
+        if relationship_type:
+            param_count += 1
+            query += f" AND relationship_type = ${param_count}"
+            params.append(relationship_type)
+        
+        if archetype:
+            param_count += 1
+            query += f" AND archetype = ${param_count}"
+            params.append(archetype)
+        
+        if tag:
+            param_count += 1
+            query += f" AND ${param_count} = ANY(tags)"
+            params.append(tag)
+        
+        rows = await conn.fetch(query, *params)
+        people = []
+        for row in rows:
+            person = dict(row)
+            person['orbit_zone'] = get_orbit_zone(person.get('gravity_score', 0))
+            if orbit_zone and person['orbit_zone'] != orbit_zone:
+                continue
+            if person.get('tags') is None:
+                person['tags'] = []
+            people.append(person)
+        
+        return people
+
+@api_router.patch("/users/{user_id}/avatar")
+async def update_avatar(user_id: str, avatar_url: str, current_user: Dict = Depends(get_current_user)):
+    """Update user avatar URL - requires authentication"""
+    if current_user['id'] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    async with db_pool.acquire() as conn:
+        result = await conn.execute("UPDATE users SET avatar_url = $1 WHERE id = $2", avatar_url, user_id)
+        if result == "UPDATE 0":
+            raise HTTPException(status_code=404, detail="User not found")
+        row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        return serialize_row(row)
 
 app.include_router(api_router)
 
