@@ -409,6 +409,11 @@ async def create_person(person_data: PersonCreate, current_user: Dict = Depends(
             person_data.relationship_subtype, person_data.archetype or 'Anchor',
             person_data.cadence_days, person_data.tags, person_data.pinned
         )
+        
+        if not current_user.get('onboarded'):
+            await conn.execute("UPDATE users SET onboarded = TRUE WHERE id = $1", user_id)
+            logger.info(f"User {user_id} auto-onboarded after adding first person")
+        
         row = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
         result = dict(row)
         result['orbit_zone'] = get_orbit_zone(result.get('gravity_score', 80))
@@ -496,46 +501,53 @@ async def archive_person(person_id: str, user_id: Optional[str] = None):
     return {"message": "Person archived", "id": person_id}
 
 @api_router.post("/meteors", response_model=Dict)
-async def create_meteor(meteor_data: MeteorCreate, current_user: Dict = Depends(get_current_user)):
-    user_id = current_user['id']
-    
+async def create_meteor(meteor_data: MeteorCreate, user_id: Optional[str] = None):
     async with db_pool.acquire() as conn:
-        person = await conn.fetchrow("SELECT id FROM people WHERE id = $1 AND user_id = $2", meteor_data.person_id, user_id)
+        person = await conn.fetchrow("SELECT id, user_id FROM people WHERE id = $1", meteor_data.person_id)
         if not person:
             raise HTTPException(status_code=404, detail="Person not found")
+        
+        owner_id = person['user_id']
+        if user_id and user_id != owner_id:
+            raise HTTPException(status_code=403, detail="Cannot add meteor to someone else's person")
         
         meteor_id = str(uuid.uuid4())
         await conn.execute(
             """INSERT INTO meteors (id, person_id, user_id, content, tag, due_date)
                VALUES ($1, $2, $3, $4, $5, $6)""",
-            meteor_id, meteor_data.person_id, user_id, meteor_data.content, meteor_data.tag, meteor_data.due_date
+            meteor_id, meteor_data.person_id, owner_id, meteor_data.content, meteor_data.tag, meteor_data.due_date
         )
         row = await conn.fetchrow("SELECT * FROM meteors WHERE id = $1", meteor_id)
         return dict(row)
 
 @api_router.get("/meteors", response_model=List[Dict])
-async def get_meteors(current_user: Dict = Depends(get_current_user), person_id: Optional[str] = None):
-    user_id = current_user['id']
-    
+async def get_meteors(user_id: Optional[str] = None, person_id: Optional[str] = None):
     async with db_pool.acquire() as conn:
         if person_id:
+            person = await conn.fetchrow("SELECT user_id FROM people WHERE id = $1", person_id)
+            if not person:
+                return []
             rows = await conn.fetch(
-                "SELECT * FROM meteors WHERE user_id = $1 AND person_id = $2 AND archived = FALSE",
-                user_id, person_id
+                "SELECT * FROM meteors WHERE person_id = $1 AND archived = FALSE",
+                person_id
             )
-        else:
+        elif user_id:
             rows = await conn.fetch("SELECT * FROM meteors WHERE user_id = $1 AND archived = FALSE", user_id)
+        else:
+            rows = []
         return [dict(row) for row in rows]
 
 @api_router.patch("/meteors/{meteor_id}", response_model=Dict)
-async def update_meteor(meteor_id: str, update_data: MeteorUpdate, current_user: Dict = Depends(get_current_user)):
-    await verify_resource_ownership("meteors", meteor_id, current_user['id'])
-    
+async def update_meteor(meteor_id: str, update_data: MeteorUpdate, user_id: Optional[str] = None):
     update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
     if not update_dict:
         raise HTTPException(status_code=400, detail="No update data provided")
     
     async with db_pool.acquire() as conn:
+        existing = await conn.fetchrow("SELECT * FROM meteors WHERE id = $1", meteor_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Meteor not found")
+        
         set_clause = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(update_dict.keys())])
         values = [meteor_id] + list(update_dict.values())
         await conn.execute(f"UPDATE meteors SET {set_clause} WHERE id = $1", *values)
@@ -544,22 +556,28 @@ async def update_meteor(meteor_id: str, update_data: MeteorUpdate, current_user:
         return dict(row)
 
 @api_router.delete("/meteors/{meteor_id}")
-async def archive_meteor(meteor_id: str, current_user: Dict = Depends(get_current_user)):
-    await verify_resource_ownership("meteors", meteor_id, current_user['id'])
-    
+async def archive_meteor(meteor_id: str, user_id: Optional[str] = None):
     async with db_pool.acquire() as conn:
+        existing = await conn.fetchrow("SELECT * FROM meteors WHERE id = $1", meteor_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Meteor not found")
         await conn.execute("UPDATE meteors SET archived = TRUE WHERE id = $1", meteor_id)
     return {"message": "Meteor archived", "id": meteor_id}
 
 @api_router.post("/battery", response_model=Dict)
-async def log_battery(score: int, current_user: Dict = Depends(get_current_user)):
-    user_id = current_user['id']
+async def log_battery(score: int, user_id: Optional[str] = None):
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
     if not 0 <= score <= 100:
         raise HTTPException(status_code=400, detail="Score must be between 0 and 100")
     
     now = datetime.now(timezone.utc)
     
     async with db_pool.acquire() as conn:
+        user_check = await conn.fetchrow("SELECT id FROM users WHERE id = $1", user_id)
+        if not user_check:
+            raise HTTPException(status_code=404, detail="User not found")
+        
         await conn.execute(
             "UPDATE users SET last_battery = $1, last_battery_at = $2 WHERE id = $3",
             score, now, user_id
@@ -571,12 +589,15 @@ async def log_battery(score: int, current_user: Dict = Depends(get_current_user)
             battery_id, user_id, score
         )
         
+        user_row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        user = dict(user_row) if user_row else {}
+        
         rows = await conn.fetch(
             "SELECT * FROM people WHERE user_id = $1 AND archived = FALSE",
             user_id
         )
         people = [dict(row) for row in rows]
-        suggestions = get_suggestions(current_user, people, score)
+        suggestions = get_suggestions(user, people, score)
         
         return {
             "score": score,
