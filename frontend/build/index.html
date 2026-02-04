@@ -3,8 +3,14 @@
   window.__foUserId = null;
   var origFetch = window.fetch;
   window.fetch = async function() {
-    var resp = await origFetch.apply(this, arguments);
     var url = arguments[0];
+    if (url && url.includes) {
+      var match = url.match(/user_id=([a-f0-9-]+)/i);
+      if (match && match[1]) {
+        window.__foUserId = match[1];
+      }
+    }
+    var resp = await origFetch.apply(this, arguments);
     if (url && url.includes && url.includes('/api/auth/telegram')) {
       try {
         var clone = resp.clone();
@@ -18,26 +24,30 @@
   };
   document.addEventListener('click', async function(e) {
     var btn = e.target;
-    if (btn && (btn.textContent === 'Delete Everything' || btn.innerText === 'Delete Everything')) {
+    var txt = (btn.textContent || btn.innerText || '').trim();
+    if (txt === 'Delete Everything') {
       e.preventDefault();
       e.stopPropagation();
       var userId = window.__foUserId;
       if (!userId) {
-        alert('Please refresh and try again');
+        alert('User ID not found. Please go back to Universe view, then try again.');
         return;
       }
       try {
         var resp = await origFetch('/api/users/' + userId + '/data', {method: 'DELETE'});
         if (resp.ok) {
-          localStorage.removeItem('fo_demo_id');
-          alert('All data deleted successfully!');
-          window.location.href = '/';
+          localStorage.clear();
+          alert('All data deleted! The app will now restart.');
+          if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.close();
+          } else {
+            window.location.href = '/';
+          }
         } else {
           var err = await resp.text();
-          alert('Failed to delete: ' + err);
+          alert('Failed: ' + err);
         }
       } catch (err) {
-        console.error('Delete error:', err);
         alert('Error: ' + err.message);
       }
     }
