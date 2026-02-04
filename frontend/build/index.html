@@ -1,27 +1,44 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#000000"/><meta name="description" content="Friend Orbit - Your relationships as a universe"/><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet"/><title>Friend Orbit</title><script src="https://telegram.org/js/telegram-web-app.js"></script><style>.input-focused .glass-modal{display:none!important}</style><script>document.addEventListener('focusin',function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'){document.body.classList.add('input-focused')}});document.addEventListener('focusout',function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'){document.body.classList.remove('input-focused')}});</script><script>
 (function(){
+  window.__foUserId = null;
+  var origFetch = window.fetch;
+  window.fetch = async function() {
+    var resp = await origFetch.apply(this, arguments);
+    var url = arguments[0];
+    if (url && url.includes && url.includes('/api/auth/telegram')) {
+      try {
+        var clone = resp.clone();
+        var data = await clone.json();
+        if (data && data.user && data.user.id) {
+          window.__foUserId = data.user.id;
+        }
+      } catch(e) {}
+    }
+    return resp;
+  };
   document.addEventListener('click', async function(e) {
-    if (e.target && e.target.textContent === 'Delete Everything') {
+    var btn = e.target;
+    if (btn && (btn.textContent === 'Delete Everything' || btn.innerText === 'Delete Everything')) {
       e.preventDefault();
       e.stopPropagation();
-      var userData = localStorage.getItem('friend_orbit_user');
-      if (userData) {
-        try {
-          var user = JSON.parse(userData);
-          if (user && user.id) {
-            var resp = await fetch('/api/users/' + user.id + '/data', {method: 'DELETE'});
-            if (resp.ok) {
-              localStorage.removeItem('friend_orbit_user');
-              alert('All data deleted successfully!');
-              window.location.href = '/';
-            } else {
-              alert('Failed to delete data');
-            }
-          }
-        } catch (err) {
-          console.error('Delete error:', err);
-          alert('Error deleting data');
+      var userId = window.__foUserId;
+      if (!userId) {
+        alert('Please refresh and try again');
+        return;
+      }
+      try {
+        var resp = await origFetch('/api/users/' + userId + '/data', {method: 'DELETE'});
+        if (resp.ok) {
+          localStorage.removeItem('fo_demo_id');
+          alert('All data deleted successfully!');
+          window.location.href = '/';
+        } else {
+          var err = await resp.text();
+          alert('Failed to delete: ' + err);
         }
+      } catch (err) {
+        console.error('Delete error:', err);
+        alert('Error: ' + err.message);
       }
     }
   }, true);
