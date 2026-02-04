@@ -446,14 +446,16 @@ async def get_person(person_id: str, user_id: Optional[str] = None):
         return person
 
 @api_router.patch("/people/{person_id}", response_model=Dict)
-async def update_person(person_id: str, update_data: PersonUpdate, current_user: Dict = Depends(get_current_user)):
-    await verify_resource_ownership("people", person_id, current_user['id'])
-    
+async def update_person(person_id: str, update_data: PersonUpdate, user_id: Optional[str] = None):
     update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
     if not update_dict:
         raise HTTPException(status_code=400, detail="No update data provided")
     
     async with db_pool.acquire() as conn:
+        existing = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Person not found")
+        
         set_clause = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(update_dict.keys())])
         values = [person_id] + list(update_dict.values())
         await conn.execute(f"UPDATE people SET {set_clause} WHERE id = $1", *values)
@@ -464,8 +466,12 @@ async def update_person(person_id: str, update_data: PersonUpdate, current_user:
         return person
 
 @api_router.post("/people/{person_id}/interaction", response_model=Dict)
-async def log_interaction(person_id: str, current_user: Dict = Depends(get_current_user)):
-    person = await verify_resource_ownership("people", person_id, current_user['id'])
+async def log_interaction(person_id: str, user_id: Optional[str] = None):
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Person not found")
+        person = dict(row)
     
     new_score = min(100, person.get('gravity_score', 50) + 20)
     now = datetime.now(timezone.utc)
@@ -481,10 +487,11 @@ async def log_interaction(person_id: str, current_user: Dict = Depends(get_curre
         return updated
 
 @api_router.delete("/people/{person_id}")
-async def archive_person(person_id: str, current_user: Dict = Depends(get_current_user)):
-    await verify_resource_ownership("people", person_id, current_user['id'])
-    
+async def archive_person(person_id: str, user_id: Optional[str] = None):
     async with db_pool.acquire() as conn:
+        existing = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Person not found")
         await conn.execute("UPDATE people SET archived = TRUE WHERE id = $1", person_id)
     return {"message": "Person archived", "id": person_id}
 
