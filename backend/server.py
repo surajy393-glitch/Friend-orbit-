@@ -57,6 +57,16 @@ scheduler = AsyncIOScheduler()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def serialize_row(row) -> Dict:
+    """Convert asyncpg Record to JSON-serializable dict"""
+    if row is None:
+        return None
+    result = dict(row)
+    for key, value in result.items():
+        if isinstance(value, datetime):
+            result[key] = value.isoformat()
+    return result
+
 async def init_db():
     global db_pool
     db_pool = await asyncpg.create_pool(DATABASE_URL)
@@ -812,7 +822,7 @@ async def auth_telegram(auth_data: AuthRequest):
         if telegram_id and not init_data:
             row = await conn.fetchrow("SELECT * FROM users WHERE telegram_id = $1", telegram_id)
             if row:
-                return {"user": dict(row), "is_new": False}
+                return {"user": serialize_row(row), "is_new": False}
             
             user_id = str(uuid.uuid4())
             await conn.execute(
@@ -820,7 +830,7 @@ async def auth_telegram(auth_data: AuthRequest):
                 user_id, telegram_id, display_name
             )
             row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
-            return {"user": dict(row), "is_new": True}
+            return {"user": serialize_row(row), "is_new": True}
         
         if init_data:
             user_data = validate_telegram_init_data(init_data)
@@ -831,7 +841,7 @@ async def auth_telegram(auth_data: AuthRequest):
                 
                 row = await conn.fetchrow("SELECT * FROM users WHERE telegram_id = $1", tg_id)
                 if row:
-                    return {"user": dict(row), "is_new": False}
+                    return {"user": serialize_row(row), "is_new": False}
                 
                 user_id = str(uuid.uuid4())
                 await conn.execute(
@@ -839,13 +849,13 @@ async def auth_telegram(auth_data: AuthRequest):
                     user_id, tg_id, name
                 )
                 row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
-                return {"user": dict(row), "is_new": True}
+                return {"user": serialize_row(row), "is_new": True}
             else:
                 logger.warning("Telegram init_data validation failed, creating temp user")
                 temp_id = f"tg_unverified_{hashlib.md5(init_data.encode()).hexdigest()[:8]}"
                 row = await conn.fetchrow("SELECT * FROM users WHERE telegram_id = $1", temp_id)
                 if row:
-                    return {"user": dict(row), "is_new": False}
+                    return {"user": serialize_row(row), "is_new": False}
                 
                 user_id = str(uuid.uuid4())
                 await conn.execute(
@@ -853,7 +863,7 @@ async def auth_telegram(auth_data: AuthRequest):
                     user_id, temp_id, "Telegram User"
                 )
                 row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
-                return {"user": dict(row), "is_new": True}
+                return {"user": serialize_row(row), "is_new": True}
     
     raise HTTPException(status_code=401, detail="Invalid authentication")
 
