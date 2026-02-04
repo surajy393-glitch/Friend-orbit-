@@ -1,0 +1,152 @@
+{
+  "project_name": "Friend Orbit",
+  "theme": "dark",
+  "design_philosophy": {
+    "core_concept": "You are the Sun, your relationships are Planets. Gravity is attention.",
+    "emotional_tone": "Cosmic, Intimate, Vast, Glowing, Organized",
+    "visual_style": "Deep Space Glassmorphism",
+    "principles": [
+      "Orbit over List: Visualize distance as emotional closeness.",
+      "Glow is Life: Active relationships glow; drifting ones fade.",
+      "Motion is Meaning: Floating = alive; Static = dead.",
+      "Darkness is Canvas: Use deep slate/void colors, never pure black."
+    ]
+  },
+  "typography": {
+    "font_family": {
+      "heading": "Unbounded, sans-serif",
+      "body": "Outfit, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-6xl font-black tracking-tight",
+      "h2": "text-3xl md:text-4xl font-bold tracking-tight",
+      "h3": "text-2xl font-bold",
+      "body_lg": "text-lg font-medium leading-relaxed",
+      "body_base": "text-base font-normal leading-relaxed",
+      "caption": "text-xs font-medium uppercase tracking-widest text-slate-500"
+    },
+    "imports": [
+      "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Unbounded:wght@300;400;700;900&display=swap');"
+    ]
+  },
+  "colors": {
+    "palette": {
+      "background": "#020617",
+      "surface": "#0F172A",
+      "primary": "#F59E0B",
+      "secondary": "#64748B",
+      "accent": "#8B5CF6",
+      "danger": "#EF4444",
+      "success": "#10B981"
+    },
+    "gradients": {
+      "sun": "from-amber-400 via-orange-500 to-red-600",
+      "planet_anchor": "from-emerald-400 to-teal-600",
+      "planet_spark": "from-pink-500 to-rose-600",
+      "planet_sage": "from-indigo-400 to-violet-600",
+      "planet_comet": "from-blue-400 to-cyan-500",
+      "universe_bg": "radial-gradient(circle at center, #1e293b 0%, #020617 100%)"
+    },
+    "archetypes": {
+      "Anchor": "#10B981",
+      "Spark": "#EC4899",
+      "Sage": "#8B5CF6",
+      "Comet": "#06B6D4"
+    },
+    "glass": {
+      "panel": "bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-2xl",
+      "modal": "bg-slate-950/80 backdrop-blur-2xl border-t border-white/10"
+    }
+  },
+  "layout": {
+    "grid_system": "Mobile-first, single column. Universe view is a full-screen canvas.",
+    "spacing": {
+      "container_padding": "p-6 md:p-12",
+      "section_gap": "gap-8 md:gap-12",
+      "component_gap": "gap-4"
+    },
+    "universe_view": {
+      "description": "A full-screen radial layout. Center is User (Sun). Rings are CSS borders.",
+      "positioning": "Absolute positioning based on angle and radius (Orbit JS concept).",
+      "z_index": {
+        "stars": 0,
+        "orbits": 10,
+        "planets": 20,
+        "sun": 30,
+        "ui_overlay": 50,
+        "modal": 100
+      }
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-white text-slate-950 hover:bg-slate-200 rounded-full font-bold px-8 py-3 transition-transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.3)]",
+      "secondary": "bg-slate-800/50 text-white hover:bg-slate-800 rounded-full font-medium px-6 py-2 border border-white/10 backdrop-blur-md",
+      "ghost": "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg px-4 py-2"
+    },
+    "inputs": {
+      "default": "bg-slate-950/50 border-white/10 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+    },
+    "cards": {
+      "planet_card": "bg-slate-900/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-xl hover:border-white/20 transition-all duration-300",
+      "meteor_card": "bg-indigo-950/30 border border-indigo-500/20 rounded-xl p-4 rotate-1 hover:rotate-0 transition-transform"
+    },
+    "navigation": {
+      "dock": "fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-full p-2 flex gap-2 shadow-2xl z-50"
+    }
+  },
+  "motion": {
+    "animations": {
+      "float": "animate-float (custom keyframe: translateY 0 -> -10px -> 0)",
+      "pulse_glow": "animate-pulse-glow (opacity and shadow intensity)",
+      "orbit_entry": "scale-0 opacity-0 -> scale-100 opacity-100 (spring physics)",
+      "drawer_slide": "translate-y-100% -> translate-y-0"
+    },
+    "transitions": {
+      "default": "transition-all duration-300 ease-out",
+      "page": "opacity-0 -> opacity-100 duration-500"
+    }
+  },
+  "assets": {
+    "images": [
+      {
+        "category": "backgrounds",
+        "url": "https://images.unsplash.com/photo-1579398707644-ff84b1e6931f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwxfHxkZWVwJTIwc3BhY2UlMjBuZWJ1bGElMjBiYWNrZ3JvdW5kJTIwZGFyayUyMHB1cnBsZSUyMGJsdWV8ZW58MHx8fHwxNzcwMjIyMTczfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Deep space nebula with purple glow",
+        "usage": "Main Universe Dashboard Background (darkened)"
+      },
+      {
+        "category": "backgrounds",
+        "url": "https://images.pexels.com/photos/18500331/pexels-photo-18500331.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Milky way nebula",
+        "usage": "Onboarding / Login Screen Background"
+      }
+    ],
+    "icons": {
+      "library": "lucide-react",
+      "mapping": {
+        "Universe": "Orbit",
+        "Add Planet": "Plus",
+        "Meteors": "Zap",
+        "Settings": "Settings2",
+        "Drift": "Wind",
+        "Gravity": "Magnet"
+      }
+    }
+  },
+  "technical_instructions": {
+    "framework": "React + Tailwind + Shadcn/UI",
+    "main_layout_file": "/app/frontend/src/Layout.js",
+    "universe_component": "/app/frontend/src/components/UniverseMap.js",
+    "css_overrides": "Add custom keyframes for floating and glowing in tailwind.config.js",
+    "mobile_optimization": "Use 'touch-action: none' on the canvas to prevent scrolling while panning."
+  },
+  "universal_guidelines": [
+    "DO NOT use gradients for text, it kills readability on stars.",
+    "Use 'backdrop-blur-xl' heavily to make UI readable over the galaxy background.",
+    "Planets must be tappable buttons with >44px touch target.",
+    "No AI emojis in UI labels.",
+    "Use Sonner for toasts (e.g., 'Planet added to orbit')."
+  ]
+}

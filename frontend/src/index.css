@@ -1,0 +1,359 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Unbounded:wght@300;400;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 222 84% 3%;
+  --foreground: 210 40% 98%;
+  --card: 217 33% 6%;
+  --card-foreground: 210 40% 98%;
+  --popover: 217 33% 6%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 37 91% 55%;
+  --primary-foreground: 222 84% 3%;
+  --secondary: 215 20% 40%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 12%;
+  --muted-foreground: 215 20% 55%;
+  --accent: 263 70% 58%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 15%;
+  --input: 217 33% 15%;
+  --ring: 263 70% 58%;
+  --radius: 0.75rem;
+  
+  /* Archetype colors */
+  --anchor: 160 84% 39%;
+  --spark: 330 81% 60%;
+  --sage: 263 70% 58%;
+  --comet: 186 94% 41%;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+#root {
+  overflow: auto;
+}
+
+body {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: pan-x pan-y;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Unbounded', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Glass panel */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-modal {
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Stars background */
+.stars-bg {
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 30% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 70% 60%, rgba(6, 182, 212, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+  z-index: 0;
+}
+
+.stars-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.4), transparent),
+    radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.5), transparent),
+    radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1px 1px at 160px 120px, rgba(255,255,255,0.6), transparent),
+    radial-gradient(2px 2px at 200px 50px, rgba(255,255,255,0.35), transparent),
+    radial-gradient(1px 1px at 240px 150px, rgba(255,255,255,0.4), transparent),
+    radial-gradient(2px 2px at 280px 90px, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 320px 180px, rgba(255,255,255,0.55), transparent),
+    radial-gradient(2px 2px at 360px 30px, rgba(255,255,255,0.2), transparent);
+  background-repeat: repeat;
+  background-size: 400px 200px;
+  animation: twinkle 8s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+  0% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* Orbit rings */
+.orbit-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.orbit-ring-inner {
+  border-color: rgba(245, 158, 11, 0.15);
+}
+
+.orbit-ring-goldilocks {
+  border-color: rgba(139, 92, 246, 0.12);
+}
+
+.orbit-ring-outer {
+  border-color: rgba(100, 116, 139, 0.1);
+}
+
+/* Planet animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+    opacity: 1;
+  }
+  50% { 
+    box-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+    opacity: 0.9;
+  }
+}
+
+@keyframes orbit-entry {
+  0% { 
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes meteor-float {
+  0%, 100% { 
+    transform: translateY(0) rotate(1deg); 
+  }
+  50% { 
+    transform: translateY(-4px) rotate(-1deg); 
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-orbit-entry {
+  animation: orbit-entry 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-meteor-float {
+  animation: meteor-float 5s ease-in-out infinite;
+}
+
+/* Planet colors by archetype */
+.planet-anchor {
+  background: linear-gradient(135deg, #10B981, #0D9488);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4), 0 0 40px rgba(16, 185, 129, 0.2);
+}
+
+.planet-spark {
+  background: linear-gradient(135deg, #EC4899, #DB2777);
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.4), 0 0 40px rgba(236, 72, 153, 0.2);
+}
+
+.planet-sage {
+  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4), 0 0 40px rgba(139, 92, 246, 0.2);
+}
+
+.planet-comet {
+  background: linear-gradient(135deg, #06B6D4, #0891B2);
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.4), 0 0 40px rgba(6, 182, 212, 0.2);
+}
+
+.planet-partner {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.5), 0 0 50px rgba(245, 158, 11, 0.3);
+}
+
+/* Sun (user) */
+.sun {
+  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 50%, #D97706 100%);
+  box-shadow: 
+    0 0 40px rgba(251, 191, 36, 0.6),
+    0 0 80px rgba(245, 158, 11, 0.4),
+    0 0 120px rgba(217, 119, 6, 0.2);
+}
+
+/* Glow intensity based on gravity */
+.glow-high {
+  filter: brightness(1.2);
+}
+
+.glow-medium {
+  filter: brightness(1);
+  opacity: 0.85;
+}
+
+.glow-low {
+  filter: brightness(0.7);
+  opacity: 0.6;
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-white text-slate-950 hover:bg-slate-200 rounded-full font-bold px-8 py-3 transition-all duration-200;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  @apply bg-slate-800/50 text-white hover:bg-slate-800 rounded-full font-medium px-6 py-2 border border-white/10 backdrop-blur-md transition-all duration-200;
+}
+
+.btn-ghost {
+  @apply text-slate-400 hover:text-white hover:bg-white/5 rounded-lg px-4 py-2 transition-all duration-200;
+}
+
+/* Input styles */
+.input-default {
+  @apply bg-slate-950/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 transition-all duration-200;
+}
+
+.input-default:focus {
+  @apply ring-1 ring-indigo-500/50 outline-none;
+}
+
+/* Card styles */
+.card-planet {
+  @apply bg-slate-900/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 transition-all duration-300;
+}
+
+.card-planet:hover {
+  @apply border-white/15;
+}
+
+.card-meteor {
+  @apply bg-indigo-950/30 border border-indigo-500/20 rounded-xl p-4 transition-transform duration-200;
+}
+
+/* Bottom dock */
+.bottom-dock {
+  @apply fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-full p-2 flex gap-2 z-50;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Drawer / Sheet styles */
+.drawer-content {
+  @apply bg-slate-950/95 backdrop-blur-2xl border-t border-white/10 rounded-t-3xl;
+}
+
+/* Badge styles */
+.badge-anchor { @apply bg-emerald-500/20 text-emerald-400 border-emerald-500/30; }
+.badge-spark { @apply bg-pink-500/20 text-pink-400 border-pink-500/30; }
+.badge-sage { @apply bg-violet-500/20 text-violet-400 border-violet-500/30; }
+.badge-comet { @apply bg-cyan-500/20 text-cyan-400 border-cyan-500/30; }
+.badge-family { @apply bg-amber-500/20 text-amber-400 border-amber-500/30; }
+.badge-partner { @apply bg-rose-500/20 text-rose-400 border-rose-500/30; }
+
+/* Gravity meter */
+.gravity-meter {
+  @apply h-2 rounded-full bg-slate-800 overflow-hidden;
+}
+
+.gravity-meter-fill {
+  @apply h-full rounded-full transition-all duration-500 ease-out;
+}
+
+.gravity-high { @apply bg-gradient-to-r from-emerald-500 to-emerald-400; }
+.gravity-medium { @apply bg-gradient-to-r from-amber-500 to-amber-400; }
+.gravity-low { @apply bg-gradient-to-r from-red-500 to-red-400; }
+
+/* Selection */
+::selection {
+  background: rgba(139, 92, 246, 0.3);
+  color: white;
+}
+
+/* Hide scrollbar for mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  body {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
