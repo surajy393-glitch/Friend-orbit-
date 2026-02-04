@@ -146,12 +146,13 @@ async def init_db():
     
     logger.info("Database initialized successfully")
 
-async def get_current_user(x_user_id: Optional[str] = Header(None, alias="X-User-Id")) -> Dict:
-    if not x_user_id:
+async def get_current_user(request: Request, x_user_id: Optional[str] = Header(None, alias="X-User-Id")) -> Dict:
+    uid = x_user_id or request.query_params.get('user_id')
+    if not uid:
         raise HTTPException(status_code=401, detail="Missing X-User-Id header")
     
     async with db_pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", x_user_id)
+        row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", uid)
         if not row:
             raise HTTPException(status_code=401, detail="Invalid user")
         return dict(row)
