@@ -292,29 +292,31 @@ const Setup = () => {
         </div>
 
         {/* Bottom navigation */}
-        <div className="fixed bottom-0 left-0 right-0 p-6 glass-modal">
-          <div className="max-w-md mx-auto flex gap-3">
-            {step > 0 && (
+        {!showAddPlanet && (
+          <div className="fixed bottom-0 left-0 right-0 p-6 glass-modal">
+            <div className="max-w-md mx-auto flex gap-3">
+              {step > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(step - 1)}
+                  className="btn-secondary flex-1"
+                  data-testid="setup-back-btn"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Back
+                </Button>
+              )}
               <Button
-                variant="outline"
-                onClick={() => setStep(step - 1)}
-                className="btn-secondary flex-1"
-                data-testid="setup-back-btn"
+                onClick={handleNext}
+                className="btn-primary flex-1"
+                data-testid="setup-next-btn"
               >
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Back
+                {step === 2 ? (addedPeople.length === 0 ? 'Skip for now' : 'Enter Universe') : 'Continue'}
+                <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
-            )}
-            <Button
-              onClick={handleNext}
-              className="btn-primary flex-1"
-              data-testid="setup-next-btn"
-            >
-              {step === 2 ? (addedPeople.length === 0 ? 'Skip for now' : 'Enter Universe') : 'Continue'}
-              <ChevronRight className="w-4 h-4 ml-2" />
-            </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
