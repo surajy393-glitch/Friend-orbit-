@@ -571,6 +571,50 @@ async def log_battery(score: int, current_user: Dict = Depends(get_current_user)
             "suggestions": suggestions
         }
 
+@api_router.get("/battery/{user_id}", response_model=Dict)
+async def get_battery_by_user_id(user_id: str):
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        user = dict(row)
+    
+    last_battery = user.get('last_battery')
+    last_battery_at = user.get('last_battery_at')
+    user_tz = user.get('timezone', 'Asia/Kolkata')
+    
+    today_local = get_user_local_date(user_tz)
+    needs_update = True
+    
+    if last_battery_at:
+        try:
+            if isinstance(last_battery_at, str):
+                last_dt = datetime.fromisoformat(last_battery_at.replace('Z', '+00:00'))
+            else:
+                last_dt = last_battery_at
+            tz = pytz.timezone(user_tz)
+            last_logged_local = last_dt.astimezone(tz).date()
+            needs_update = last_logged_local != today_local
+        except:
+            needs_update = True
+    
+    suggestions = []
+    if last_battery is not None:
+        async with db_pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM people WHERE user_id = $1 AND archived = FALSE",
+                user_id
+            )
+            people = [dict(row) for row in rows]
+            suggestions = get_suggestions(user, people, last_battery)
+    
+    return {
+        "score": last_battery,
+        "logged_at": last_battery_at.isoformat() if isinstance(last_battery_at, datetime) else last_battery_at,
+        "needs_update": needs_update,
+        "suggestions": suggestions
+    }
+
 @api_router.get("/battery", response_model=Dict)
 async def get_battery(current_user: Dict = Depends(get_current_user)):
     user_id = current_user['id']
