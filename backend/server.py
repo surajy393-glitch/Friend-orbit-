@@ -434,10 +434,16 @@ async def get_people(current_user: Dict = Depends(get_current_user), include_arc
         return people
 
 @api_router.get("/people/{person_id}", response_model=Dict)
-async def get_person(person_id: str, current_user: Dict = Depends(get_current_user)):
-    person = await verify_resource_ownership("people", person_id, current_user['id'])
-    person['orbit_zone'] = get_orbit_zone(person.get('gravity_score', 0))
-    return person
+async def get_person(person_id: str, user_id: Optional[str] = None):
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM people WHERE id = $1", person_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Person not found")
+        person = dict(row)
+        person['orbit_zone'] = get_orbit_zone(person.get('gravity_score', 0))
+        if person.get('tags') is None:
+            person['tags'] = []
+        return person
 
 @api_router.patch("/people/{person_id}", response_model=Dict)
 async def update_person(person_id: str, update_data: PersonUpdate, current_user: Dict = Depends(get_current_user)):
