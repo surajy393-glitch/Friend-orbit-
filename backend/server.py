@@ -419,6 +419,38 @@ async def delete_all_user_data(user_id: str):
         logger.info(f"Deleted all data for user {user_id}")
         return {"message": "All data deleted successfully", "user_id": user_id}
 
+@api_router.delete("/users/telegram/{telegram_id}/data")
+async def delete_user_data_by_telegram_id(telegram_id: int):
+    """Delete all data for a user by their Telegram ID"""
+    async with db_pool.acquire() as conn:
+        user = await conn.fetchrow("SELECT * FROM users WHERE telegram_id = $1", telegram_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_id = user['id']
+        people_ids = await conn.fetch("SELECT id FROM people WHERE user_id = $1", user_id)
+        person_ids = [r['id'] for r in people_ids]
+        
+        if person_ids:
+            await conn.execute("DELETE FROM meteors WHERE person_id = ANY($1::text[])", person_ids)
+            await conn.execute("DELETE FROM invites WHERE person_id = ANY($1::text[])", person_ids)
+        
+        await conn.execute("DELETE FROM meteors WHERE user_id = $1", user_id)
+        await conn.execute("DELETE FROM battery_logs WHERE user_id = $1", user_id)
+        await conn.execute("DELETE FROM invites WHERE inviter_id = $1", user_id)
+        await conn.execute("DELETE FROM people WHERE user_id = $1", user_id)
+        
+        await conn.execute("""
+            UPDATE users SET 
+                onboarded = FALSE, 
+                last_battery = NULL, 
+                last_battery_at = NULL 
+            WHERE id = $1
+        """, user_id)
+        
+        logger.info(f"Deleted all data for user {user_id} (telegram_id: {telegram_id})")
+        return {"message": "All data deleted successfully", "telegram_id": telegram_id}
+
 @api_router.post("/people", response_model=Dict)
 async def create_person(person_data: PersonCreate, current_user: Dict = Depends(get_current_user)):
     user_id = current_user['id']
