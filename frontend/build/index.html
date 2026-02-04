@@ -1,23 +1,27 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#000000"/><meta name="description" content="Friend Orbit - Your relationships as a universe"/><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet"/><title>Friend Orbit</title><script src="https://telegram.org/js/telegram-web-app.js"></script><style>.input-focused .glass-modal{display:none!important}</style><script>document.addEventListener('focusin',function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'){document.body.classList.add('input-focused')}});document.addEventListener('focusout',function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'){document.body.classList.remove('input-focused')}});</script><script>
 (function(){
-  window.__foUserId = null;
   var origFetch = window.fetch;
+  var saveUserId = function(id) {
+    if (id) {
+      localStorage.setItem('__fo_uid', id);
+      window.__foUserId = id;
+    }
+  };
+  window.__foUserId = localStorage.getItem('__fo_uid');
   window.fetch = async function() {
     var url = arguments[0];
-    if (url && url.includes) {
+    if (url && typeof url === 'string') {
       var match = url.match(/user_id=([a-f0-9-]+)/i);
-      if (match && match[1]) {
-        window.__foUserId = match[1];
-      }
+      if (match && match[1]) saveUserId(match[1]);
+      match = url.match(/\/battery\/([a-f0-9-]+)/i);
+      if (match && match[1]) saveUserId(match[1]);
     }
     var resp = await origFetch.apply(this, arguments);
-    if (url && url.includes && url.includes('/api/auth/telegram')) {
+    if (url && typeof url === 'string' && url.includes('/api/auth/telegram')) {
       try {
         var clone = resp.clone();
         var data = await clone.json();
-        if (data && data.user && data.user.id) {
-          window.__foUserId = data.user.id;
-        }
+        if (data && data.user && data.user.id) saveUserId(data.user.id);
       } catch(e) {}
     }
     return resp;
@@ -28,16 +32,16 @@
     if (txt === 'Delete Everything') {
       e.preventDefault();
       e.stopPropagation();
-      var userId = window.__foUserId;
+      var userId = window.__foUserId || localStorage.getItem('__fo_uid');
       if (!userId) {
-        alert('User ID not found. Please go back to Universe view, then try again.');
+        alert('User ID not found. Please close and reopen the app, then try again.');
         return;
       }
       try {
         var resp = await origFetch('/api/users/' + userId + '/data', {method: 'DELETE'});
         if (resp.ok) {
           localStorage.clear();
-          alert('All data deleted! The app will now restart.');
+          alert('All data deleted! Reopen the app to start fresh.');
           if (window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.close();
           } else {
@@ -45,7 +49,7 @@
           }
         } else {
           var err = await resp.text();
-          alert('Failed: ' + err);
+          alert('Delete failed: ' + err);
         }
       } catch (err) {
         alert('Error: ' + err.message);
