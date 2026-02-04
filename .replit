@@ -1,5 +1,5 @@
 entrypoint = "index.js"
-modules = ["nodejs-22", "python-3.11"]
+modules = ["python-3.11", "nodejs-20"]
 hidden = [".config", "package-lock.json"]
 
 [gitHubImport]
@@ -7,7 +7,7 @@ requiredFiles = [".replit", "replit.nix", "package.json", "package-lock.json"]
 
 [nix]
 channel = "stable-24_11"
-packages = ["libxcrypt", "unzip"]
+packages = ["libxcrypt", "postgresql", "unzip"]
 
 [deployment]
 run = ["node", "index.js"]
@@ -16,3 +16,31 @@ ignorePorts = false
 
 [agent]
 expertMode = true
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Friend Orbit Bot"
+
+[[workflows.workflow]]
+name = "Friend Orbit Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && python -m uvicorn server:app --host 0.0.0.0 --port 5000"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
