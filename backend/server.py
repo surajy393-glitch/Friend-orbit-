@@ -420,10 +420,10 @@ async def delete_all_user_data(user_id: str):
         return {"message": "All data deleted successfully", "user_id": user_id}
 
 @api_router.delete("/users/telegram/{telegram_id}/data")
-async def delete_user_data_by_telegram_id(telegram_id: int):
+async def delete_user_data_by_telegram_id(telegram_id: str):
     """Delete all data for a user by their Telegram ID"""
     async with db_pool.acquire() as conn:
-        user = await conn.fetchrow("SELECT * FROM users WHERE telegram_id = $1", telegram_id)
+        user = await conn.fetchrow("SELECT * FROM users WHERE telegram_id = $1", str(telegram_id))
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
