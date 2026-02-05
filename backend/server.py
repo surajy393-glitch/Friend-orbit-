@@ -46,7 +46,26 @@ db_pool: Optional[asyncpg.Pool] = None
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '') or os.environ.get('BOT_TOKEN', '')
 TELEGRAM_BOT_USERNAME = os.environ.get('TELEGRAM_BOT_USERNAME', 'Friendorbitbot')
 WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET') or 'default_secret'
-WEBAPP_URL = os.environ.get('WEBAPP_URL', 'https://7c53df09-4f93-499e-9ad6-5e9a49c48841-00-1jbjv48khbbn7.pike.replit.dev')
+
+def get_webapp_url() -> str:
+    """Get the webapp URL, automatically using the Replit domain if not explicitly set"""
+    explicit_url = os.environ.get('WEBAPP_URL', '')
+    if explicit_url:
+        return explicit_url
+    
+    replit_dev_domain = os.environ.get('REPLIT_DEV_DOMAIN', '')
+    if replit_dev_domain:
+        return f"https://{replit_dev_domain}"
+    
+    replit_domains = os.environ.get('REPLIT_DOMAINS', '')
+    if replit_domains:
+        first_domain = replit_domains.split(',')[0].strip()
+        if first_domain:
+            return f"https://{first_domain}"
+    
+    return 'https://7c53df09-4f93-499e-9ad6-5e9a49c48841-00-1jbjv48khbbn7.pike.replit.dev'
+
+WEBAPP_URL = get_webapp_url()
 
 ALLOWED_ORIGINS = [o.strip() for o in os.environ.get('ALLOWED_ORIGINS', WEBAPP_URL).split(',') if o.strip()]
 
@@ -56,6 +75,7 @@ scheduler = AsyncIOScheduler()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+logger.info(f"WEBAPP_URL configured as: {WEBAPP_URL}")
 
 def serialize_row(row) -> Dict:
     """Convert asyncpg Record to JSON-serializable dict"""
