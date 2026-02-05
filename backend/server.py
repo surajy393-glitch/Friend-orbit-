@@ -43,9 +43,9 @@ FRONTEND_BUILD_DIR = find_frontend_build_dir()
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 db_pool: Optional[asyncpg.Pool] = None
 
-TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '') or os.environ.get('BOT_TOKEN', '')
 TELEGRAM_BOT_USERNAME = os.environ.get('TELEGRAM_BOT_USERNAME', 'Friendorbitbot')
-WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', 'default_secret')
+WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET') or 'default_secret'
 WEBAPP_URL = os.environ.get('WEBAPP_URL', 'https://7c53df09-4f93-499e-9ad6-5e9a49c48841-00-1jbjv48khbbn7.pike.replit.dev')
 
 ALLOWED_ORIGINS = [o.strip() for o in os.environ.get('ALLOWED_ORIGINS', WEBAPP_URL).split(',') if o.strip()]
